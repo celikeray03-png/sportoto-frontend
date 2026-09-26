@@ -3,151 +3,141 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Spor Toto Takip</title>
+  <title>Spor Toto Canlı Takip</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-2 font-sans">
+<body class="bg-slate-900 text-slate-100 min-h-screen p-2 font-sans antialiased">
   <div class="max-w-md mx-auto space-y-3">
+    
+    <!-- HEADER -->
     <header class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center shadow">
       <div>
-        <h1 class="font-bold text-sm">⚽ Spor Toto Live</h1>
-        <p class="text-[10px] text-slate-400" id="syncTime">Yükleniyor...</p>
+        <h1 class="font-bold text-sm text-emerald-400">⚽ Spor Toto Canlı Takip</h1>
+        <p class="text-[10px] text-slate-400" id="syncTime">Canlı Skorlar Yükleniyor...</p>
       </div>
-      <button onclick="document.getElementById('adminModal').classList.remove('hidden')" class="bg-slate-700 px-2.5 py-1 rounded text-xs font-semibold hover:bg-slate-600">🔒 Admin</button>
+      <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[10px] font-semibold animate-pulse">Canlı</span>
     </header>
 
-    <div id="content" class="space-y-3">
-      <div class="text-center text-xs text-slate-400 py-10">Veriler yükleniyor...</div>
+    <!-- KUPON TABLOSU -->
+    <div id="content" class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow">
+      <div class="text-center text-xs text-slate-400 py-10">Maç skorları çekiliyor...</div>
     </div>
-  </div>
 
-  <div id="adminModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden flex items-center justify-center p-3 z-50">
-    <div class="bg-slate-800 p-4 rounded-xl max-w-sm w-full space-y-3 border border-slate-700">
-      <div class="flex justify-between items-center border-b border-slate-700 pb-2">
-        <h3 class="font-bold text-xs">🔒 Kupon Yükle</h3>
-        <button onclick="document.getElementById('adminModal').classList.add('hidden')" class="text-slate-400 font-bold">&times;</button>
-      </div>
-      <input type="password" id="pwd" placeholder="Şifre (admin)" class="w-full text-xs p-2 rounded bg-slate-900 border border-slate-700 outline-none">
-      <input type="text" id="title" placeholder="Kupon Adı" value="Spor Toto Kuponum" class="w-full text-xs p-2 rounded bg-slate-900 border border-slate-700 outline-none">
-      <textarea id="text" rows="8" placeholder="Kupon metnini buraya yapıştırın..." class="w-full text-[10px] p-2 rounded bg-slate-900 border border-slate-700 font-mono outline-none"></textarea>
-      <div class="flex justify-end gap-2">
-        <button onclick="document.getElementById('adminModal').classList.add('hidden')" class="px-3 py-1.5 bg-slate-700 rounded text-xs">İptal</button>
-        <button onclick="upload()" id="btn" class="px-3 py-1.5 bg-emerald-600 rounded text-xs font-bold">Yayınla</button>
-      </div>
-    </div>
   </div>
 
   <script>
     const API = "https://sportoto-backend.onrender.com";
 
+    const COUPON_DATA = [
+      { home: "Türkiye", away: "Fransa", cols: [["2"], ["2"], ["2"]] },
+      { home: "Türkiye", away: "İtalya", cols: [["1"], ["1"], ["1"]] },
+      { home: "İsveç", away: "Romanya", cols: [["1"], ["1"], ["0"]] },
+      { home: "İtalya", away: "Belçika", cols: [["2"], ["0"], ["2"]] },
+      { home: "Slovenya", away: "İskoçya", cols: [["2"], ["2"], ["0"]] },
+      { home: "Bulgaristan", away: "Lüksemburg", cols: [["1"], ["1"], ["1"]] },
+      { home: "Kuzey Makedonya", away: "İsviçre", cols: [["1"], ["2"], ["2"]] },
+      { home: "Çekya", away: "Hırvatistan", cols: [["1"], ["2"], ["2"]] },
+      { home: "İngiltere", away: "İspanya", cols: [["1"], ["0"], ["2"]] },
+      { home: "Litvanya", away: "Azerbaycan", cols: [["1"], ["2"], ["0"]] },
+      { home: "Avusturya", away: "Kosova", cols: [["2"], ["1"], ["0"]] },
+      { home: "Danimarka", away: "Galler", cols: [["1"], ["1"], ["1"]] },
+      { home: "Sırbistan", away: "Hollanda", cols: [["1"], ["2"], ["2"]] },
+      { home: "Almanya", away: "Yunanistan", cols: [["1"], ["1"], ["1"]] },
+      { home: "Norveç", away: "Portekiz", cols: [["1", "2"], ["1"], ["2"]] }
+    ];
+
     function normalize(s) {
-      if(!s) return '';
-      return s.toLowerCase().replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ş/g,'s').replace(/ı/g,'i').replace(/ö/g,'o').replace(/ç/g,'c').replace(/[^a-z0-9]/g,'');
+      if (!s) return '';
+      return s.toLowerCase()
+        .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c')
+        .replace(/[^a-z0-9]/g, '');
     }
 
-    async function load() {
+    async function loadScores() {
       try {
-        const [cRes, sRes] = await Promise.all([fetch(API + '/api/coupon'), fetch(API + '/api/scores')]);
-        const cData = await cRes.json();
-        const sData = await sRes.json();
+        const res = await fetch(API + '/api/scores');
+        const data = await res.json();
+        const scores = data.matches || [];
 
-        document.getElementById('syncTime').innerText = 'Son Güncelleme: ' + new Date().toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
+        document.getElementById('syncTime').innerText = 'Son Güncelleme: ' + new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 
-        if(!cData.coupon || !cData.coupon.matches_data) {
-          document.getElementById('content').innerHTML = `<div class="bg-slate-800 p-6 rounded-xl text-center text-xs text-slate-400 border border-slate-700">Henüz yayınlanmış bir kupon yok. Admin panelinden yükleyebilirsiniz.</div>`;
-          return;
-        }
+        let totals = [0, 0, 0];
 
-        const matches = cData.coupon.matches_data.matches;
-        const cols = cData.coupon.matches_data.columns;
-        const scores = sData.matches || [];
-        let totals = [0,0,0];
+        let html = COUPON_DATA.map((m, i) => {
+          let lm = scores.find(s => 
+            (normalize(s.home).includes(normalize(m.home)) || normalize(m.home).includes(normalize(s.home))) && 
+            (normalize(s.away).includes(normalize(m.away)) || normalize(m.away).includes(normalize(s.away)))
+          );
 
-        let html = matches.map((m, i) => {
-          let lm = scores.find(s => (normalize(s.home).includes(normalize(m.home)) || normalize(m.home).includes(normalize(s.home))) && (normalize(s.away).includes(normalize(m.away)) || normalize(m.away).includes(normalize(s.away))));
           let hScore = lm ? lm.homeScore : 0;
           let aScore = lm ? lm.awayScore : 0;
           let st = lm ? lm.status : 'PENDING';
+          let mTime = (lm && lm.matchTime) ? lm.matchTime : '--:--';
+          let mDate = (lm && lm.matchDate) ? lm.matchDate : '';
 
           let outcome = (st !== 'PENDING') ? (hScore > aScore ? '1' : (hScore < aScore ? '2' : '0')) : null;
 
-          let colCells = [0,1,2].map(c => {
-            let picks = cols[c][i] || [];
+          let colCells = [0, 1, 2].map(c => {
+            let picks = m.cols[c];
             let correct = outcome && picks.includes(outcome);
-            if(correct && st === 'FINISHED') totals[c]++;
-            let cls = picks.length ? (correct ? 'bg-emerald-600 text-white' : (outcome ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-200')) : 'bg-slate-800 text-slate-500';
-            return `<div class="col-span-2 flex justify-center"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${cls}">${picks.join('') || '-'}</span></div>`;
+            if (correct && st === 'FINISHED') totals[c]++;
+
+            let cls = 'bg-slate-700 text-slate-200';
+            if (correct) cls = 'bg-emerald-600 text-white font-bold shadow';
+            else if (outcome && st !== 'PENDING') cls = 'bg-red-600/80 text-white';
+
+            return `
+              <div class="col-span-2 flex justify-center">
+                <span class="px-1.5 py-0.5 rounded text-[10px] ${cls}">${picks.join('')}</span>
+              </div>`;
           }).join('');
+
+          // Görünüm: Maç başladıysa/bittiyse SKOR, oynanmadıysa TARİH + SAAT
+          let scoreDisplay = `<div class="text-[8px] text-slate-400 leading-tight">${mDate}</div><div class="text-[9px] text-slate-300 font-mono font-bold">${mTime}</div>`;
+          if (st === 'LIVE') scoreDisplay = `<span class="text-red-500 font-bold animate-pulse text-[10px]">${hScore}-${aScore}</span>`;
+          else if (st === 'FINISHED') scoreDisplay = `<span class="font-bold text-slate-200 text-[10px]">${hScore}-${aScore}</span>`;
 
           return `
             <div class="grid grid-cols-12 py-2 px-2 items-center text-center text-[10px] border-b border-slate-700/50">
-              <div class="col-span-5 text-left truncate"><div class="font-bold text-slate-200 truncate">${m.home}</div><div class="text-slate-400 truncate">${m.away}</div></div>
+              <div class="col-span-5 text-left truncate">
+                <div class="font-bold text-slate-200 truncate">${m.home}</div>
+                <div class="text-slate-400 truncate">${m.away}</div>
+              </div>
               ${colCells}
-              <div class="col-span-1 font-mono font-bold ${st==='LIVE'?'text-red-500 animate-pulse':''}">${st==='PENDING'?'-':hScore+'-'+aScore}</div>
+              <div class="col-span-1 flex flex-col items-center justify-center">${scoreDisplay}</div>
             </div>`;
         }).join('');
 
         document.getElementById('content').innerHTML = `
-          <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow">
-            <div class="p-2.5 bg-slate-800/80 border-b border-slate-700 font-bold text-xs text-emerald-400">${cData.coupon.title}</div>
-            <div class="grid grid-cols-12 text-[9px] font-bold text-slate-400 bg-slate-900/50 py-1 px-2 text-center border-b border-slate-700">
-              <div class="col-span-5 text-left">MAÇ</div><div class="col-span-2">K1</div><div class="col-span-2">K2</div><div class="col-span-2">K3</div><div class="col-span-1">SKOR</div>
-            </div>
-            ${html}
-            <div class="p-2.5 bg-slate-900/80 grid grid-cols-12 text-center text-xs font-bold border-t border-slate-700">
-              <div class="col-span-5 text-left text-[10px] text-slate-400">Tutan (15/):</div>
-              <div class="col-span-2"><span class="bg-emerald-600 px-2 py-0.5 rounded text-[10px]">${totals[0]}</span></div>
-              <div class="col-span-2"><span class="bg-emerald-600 px-2 py-0.5 rounded text-[10px]">${totals[1]}</span></div>
-              <div class="col-span-2"><span class="bg-emerald-600 px-2 py-0.5 rounded text-[10px]">${totals[2]}</span></div>
-              <div class="col-span-1"></div>
-            </div>
+          <div class="grid grid-cols-12 text-[9px] font-bold text-slate-400 bg-slate-900/60 py-1.5 px-2 text-center border-b border-slate-700 uppercase">
+            <div class="col-span-5 text-left">Maç</div>
+            <div class="col-span-2">K1</div>
+            <div class="col-span-2">K2</div>
+            <div class="col-span-2">K3</div>
+            <div class="col-span-1">Durum</div>
+          </div>
+          <div>${html}</div>
+          <div class="p-2.5 bg-slate-900/80 grid grid-cols-12 text-center text-xs font-bold border-t border-slate-700 items-center">
+            <div class="col-span-5 text-left text-[10px] text-slate-400">Tutan Maç (15/):</div>
+            <div class="col-span-2"><span class="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px]">${totals[0]}</span></div>
+            <div class="col-span-2"><span class="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px]">${totals[1]}</span></div>
+            <div class="col-span-2"><span class="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px]">${totals[2]}</span></div>
+            <div class="col-span-1"></div>
+          </div>
+        `;
+
+      } catch (e) {
+        document.getElementById('content').innerHTML = `
+          <div class="p-6 text-center text-xs text-amber-400">
+            Render sunucusu uyanıyor, lütfen 15 saniye sonra sayfayı yenileyin...
           </div>`;
-      } catch(e) {
-        document.getElementById('content').innerHTML = `<div class="bg-slate-800 p-4 rounded-xl text-center text-xs text-red-400 border border-slate-700">Sunucu uyanıyor, lütfen 10 saniye sonra sayfayı yenileyin...</div>`;
       }
     }
 
-    async function upload() {
-      const pwd = document.getElementById('pwd').value;
-      const title = document.getElementById('title').value;
-      const text = document.getElementById('text').value;
-      const btn = document.getElementById('btn');
-
-      if(!pwd || !text) return alert('Şifre ve metin zorunludur!');
-
-      btn.innerText = "Yükleniyor...";
-      btn.disabled = true;
-
-      let parsedMatches = [], parsedColumns = [[],[],[]];
-      text.split('\n').filter(l => l.trim()).slice(0, 15).forEach((line, idx) => {
-        let parts = line.replace(/^[0-9]+[\.\-\s]+/, '').split('|');
-        let teams = parts[0].split(/\s+[-–vs]+\s+/i);
-        if(teams.length < 2) teams = parts[0].split(/[-–vs]/i);
-        parsedMatches.push({ home: teams[0]?.trim() || `Maç ${idx+1}`, away: teams[1]?.trim() || 'Bekleniyor' });
-
-        for(let c=1; c<=3; c++) {
-          let picks = parts[c] ? (parts[c].match(/([0-12,\s]+)/)?.[1].split(',').map(p=>p.trim()).filter(p=>['1','0','2'].includes(p)) || []) : [];
-          parsedColumns[c-1].push(picks);
-        }
-      });
-
-      try {
-        const res = await fetch(API + '/api/admin/update-coupon', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ password: pwd, title: title, matches_data: { matches: parsedMatches, columns: parsedColumns } })
-        });
-        const data = await res.json();
-        if(data.status === 'success') {
-          alert('Kupon yayınlandı!');
-          document.getElementById('adminModal').classList.add('hidden');
-          load();
-        } else { alert(data.message); }
-      } catch(e) { alert('Hata oluştu!'); }
-      finally { btn.innerText = "Yayınla"; btn.disabled = false; }
-    }
-
-    window.onload = () => { load(); setInterval(load, 15000); };
+    window.onload = () => {
+      loadScores();
+      setInterval(loadScores, 15000);
+    };
   </script>
 </body>
 </html>
