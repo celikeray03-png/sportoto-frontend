@@ -1,67 +1,313 @@
-async function uploadCoupon() {
-  const pwd = document.getElementById('adminPassword').value;
-  const title = document.getElementById('couponTitle').value.trim() || 'Spor Toto Kuponu';
-  const text = document.getElementById('couponText').value.trim();
-  const btn = document.querySelector("#adminModal button[onclick='uploadCoupon()']");
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Spor Toto Canlı Takip</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    html, body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen antialiased">
 
-  if (!pwd || !text) { 
-    alert("Lütfen şifre ve kupon metnini girin."); 
-    return; 
-  }
+  <div class="max-w-md mx-auto min-h-screen flex flex-col px-2 py-3 space-y-3">
+    <!-- Header -->
+    <header class="bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-200 dark:border-slate-700 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <div class="bg-emerald-600 text-white p-1.5 rounded-lg font-bold text-sm">⚽</div>
+        <div>
+          <h1 class="font-bold text-xs">Spor Toto Canlı Takip</h1>
+          <p class="text-[9px] text-slate-400" id="lastSyncTime">Canlı Skor Senkronize</p>
+        </div>
+      </div>
+      <button onclick="openAdminModal()" class="text-[10px] bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-lg font-semibold hover:bg-slate-200 dark:hover:bg-slate-600">
+        🔒 Admin
+      </button>
+    </header>
 
-  btn.innerText = "Yayınlanıyor...";
-  btn.disabled = true;
+    <!-- Kupon Bilgisi -->
+    <main id="couponContainer" class="space-y-3">
+      <div class="text-center text-xs text-slate-400 py-10">Kupon bekleniyor...</div>
+    </main>
+  </div>
 
-  let parsedMatches = Array.from({ length: TOTAL_MATCHES }, (_, i) => ({
-    id: i + 1, home: `Maç ${i + 1}`, away: "Bekleniyor", status: "PENDING", homeScore: null, awayScore: null
-  }));
-  let parsedColumns = [Array(TOTAL_MATCHES).fill([]), Array(TOTAL_MATCHES).fill([]), Array(TOTAL_MATCHES).fill([])];
+  <!-- ADMIN MODAL -->
+  <div id="adminModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-3 z-50">
+    <div class="bg-white dark:bg-slate-800 rounded-xl max-w-sm w-full p-4 space-y-3 border border-slate-200 dark:border-slate-700 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-2">
+        <h3 class="font-bold text-xs">🔒 Admin Kupon Yükleme</h3>
+        <button onclick="closeAdminModal()" class="text-slate-400 font-bold hover:text-slate-200">&times;</button>
+      </div>
 
-  const lines = text.split('\n').filter(l => l.trim().length > 0);
-  lines.forEach((line, idx) => {
-    if (idx < TOTAL_MATCHES) {
-      let cleanLine = line.replace(/^[0-9]+[\.\-\s]+/, '');
-      let parts = cleanLine.split('|');
-      let teamsPart = parts[0];
-      let teams = teamsPart.split(/\s+[-–vs]+\s+/i);
-      if (teams.length < 2) teams = teamsPart.split(/[-–vs]/i);
+      <div>
+        <label class="block text-[10px] font-semibold mb-1">Admin Şifresi</label>
+        <input type="password" id="adminPassword" placeholder="Şifreniz" class="w-full text-xs p-2 rounded border border-slate-300 dark:border-slate-600 dark:bg-slate-900 outline-none">
+      </div>
 
-      if (teams.length >= 2) {
-        parsedMatches[idx].home = cleanTeamName(teams[0]);
-        parsedMatches[idx].away = cleanTeamName(teams[1]);
+      <div>
+        <label class="block text-[10px] font-semibold mb-1">Kupon Başlığı</label>
+        <input type="text" id="couponTitle" placeholder="Örn: 25-28 Eylül Bülteni" class="w-full text-xs p-2 rounded border border-slate-300 dark:border-slate-600 dark:bg-slate-900 outline-none">
+      </div>
+
+      <div>
+        <label class="block text-[10px] font-semibold mb-1">Kupon Metni (15 Maç)</label>
+        <textarea id="couponText" rows="6" placeholder="Kupon metnini buraya yapıştırın..." class="w-full text-[10px] p-2 rounded border border-slate-300 dark:border-slate-600 dark:bg-slate-900 font-mono outline-none"></textarea>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeAdminModal()" class="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 rounded text-xs">İptal</button>
+        <button onclick="uploadCoupon()" id="uploadBtn" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold shadow">Yayınla</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BACKEND_URL = "https://sportoto-backend.onrender.com";
+    const TOTAL_MATCHES = 15;
+    let activeCoupon = null;
+    let liveScores = [];
+
+    const TEAM_DICTIONARY = {
+      "turkiye": "turkiye", "france": "fransa", "fransa": "fransa", "italy": "italya", "italya": "italya",
+      "sweden": "isvec", "isvec": "isvec", "romania": "romanya", "romanya": "romanya", "belgium": "belcika", "belcika": "belcika",
+      "slovenia": "slovenya", "slovenya": "slovenya", "scotland": "iskocya", "iskocya": "iskocya", "bulgaria": "bulgaristan", "bulgaristan": "bulgaristan",
+      "luxembourg": "luksemburg", "luksemburg": "luksemburg", "north macedonia": "kuzey makedonya", "kuzey makedonya": "kuzey makedonya",
+      "switzerland": "isvicre", "isvicre": "isvicre", "czechia": "cekya", "czech republic": "cekya", "cekya": "cekya",
+      "croatia": "hirvatistan", "hirvatistan": "hirvatistan", "england": "ingiltere", "ingiltere": "ingiltere", "spain": "ispanya", "ispanya": "ispanya",
+      "lithuania": "litvanya", "litvanya": "litvanya", "azerbaijan": "azerbaycan", "azerbaycan": "azerbaycan", "austria": "avusturya", "avusturya": "avusturya",
+      "kosovo": "kosova", "kosova": "kosova", "denmark": "danimarka", "danimarka": "danimarka", "wales": "galler", "galler": "galler",
+      "serbia": "sirbistan", "sirbistan": "sirbistan", "netherlands": "hollanda", "hollanda": "hollanda", "germany": "almanya", "almanya": "almanya",
+      "greece": "yunanistan", "yunanistan": "yunanistan", "norway": "norvec", "norvec": "norvec", "portugal": "portekiz", "portekiz": "portekiz"
+    };
+
+    function cleanTeamName(name) {
+      if (!name) return '';
+      return name.replace(/([a-z])\s*-\s*([a-z])/gi, '$1$2').replace(/\s+/g, ' ').trim();
+    }
+
+    function normalizeString(str) {
+      if (!str) return '';
+      let clean = str.toLowerCase()
+        .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c')
+        .replace(/[^a-z0-9\s]/g, '').trim();
+      return TEAM_DICTIONARY[clean] || clean.replace(/\s+/g, '');
+    }
+
+    function isTeamMatch(localHome, localAway, apiHome, apiAway) {
+      const lh = normalizeString(localHome);
+      const la = normalizeString(localAway);
+      const ah = normalizeString(apiHome);
+      const aa = normalizeString(apiAway);
+      if (!lh || !la || !ah || !aa) return false;
+      return ((ah.includes(lh) || lh.includes(ah)) && (aa.includes(la) || la.includes(aa))) ||
+             ((aa.includes(lh) || lh.includes(aa)) && (ah.includes(la) || la.includes(ah)));
+    }
+
+    async function loadData() {
+      try {
+        const [cRes, sRes] = await Promise.all([
+          fetch(`${BACKEND_URL}/api/coupon`),
+          fetch(`${BACKEND_URL}/api/scores`)
+        ]);
+        const cData = await cRes.json();
+        const sData = await sRes.json();
+
+        if (cData.status === 'success') activeCoupon = cData.coupon;
+        if (sData.status === 'success') liveScores = sData.matches;
+
+        document.getElementById('lastSyncTime').innerText = `Son Güncelleme: ${new Date().toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'})}`;
+        render();
+      } catch (e) {
+        console.log("Veri çekme hatası");
+      }
+    }
+
+    function render() {
+      const container = document.getElementById('couponContainer');
+      if (!activeCoupon || !activeCoupon.matches_data) {
+        container.innerHTML = `<div class="bg-white dark:bg-slate-800 p-6 rounded-xl text-center text-xs text-slate-400 border border-slate-200 dark:border-slate-700">Henüz yayınlanmış bir kupon bulunmuyor.</div>`;
+        return;
       }
 
-      if (parts.length > 1) {
-        for (let c = 1; c < parts.length && c <= 3; c++) {
-          let colText = parts[c];
-          let pickMatch = colText.match(/Kolon\s*\d+:\s*([0-12,\s]+)/i);
-          if (pickMatch) {
-            let picks = pickMatch[1].split(',').map(p => p.trim()).filter(p => ['1','0','2'].includes(p));
-            parsedColumns[c-1][idx] = picks;
+      const matches = activeCoupon.matches_data.matches || [];
+      const columns = activeCoupon.matches_data.columns || [[], [], []];
+      let colTotals = [0, 0, 0];
+
+      let matchesHtml = matches.map((m, idx) => {
+        let liveMatch = liveScores.find(lm => isTeamMatch(m.home, m.away, lm.home, lm.away));
+        let homeScore = m.homeScore, awayScore = m.awayScore, status = m.status;
+
+        if (liveMatch) {
+          const normLocalHome = normalizeString(m.home);
+          const normApiHome = normalizeString(liveMatch.home);
+          if (normApiHome.includes(normLocalHome) || normLocalHome.includes(normApiHome)) {
+            homeScore = liveMatch.homeScore; awayScore = liveMatch.awayScore;
+          } else {
+            homeScore = liveMatch.awayScore; awayScore = liveMatch.homeScore;
+          }
+          status = liveMatch.status;
+        }
+
+        let actualOutcome = null;
+        if (homeScore !== null && awayScore !== null) {
+          if (homeScore > awayScore) actualOutcome = '1';
+          else if (homeScore < awayScore) actualOutcome = '2';
+          else actualOutcome = '0';
+        }
+
+        let colsCells = '';
+        for (let c = 0; c < 3; c++) {
+          let userPicks = columns[c][idx] || [];
+          if (!Array.isArray(userPicks)) userPicks = [userPicks];
+          let isCorrect = false, statusIcon = '';
+
+          if (userPicks.length > 0) {
+            if (status === 'FINISHED' || status === 'LIVE') {
+              if (actualOutcome && userPicks.includes(actualOutcome)) {
+                isCorrect = true;
+                if (status === 'FINISHED') colTotals[c]++;
+                statusIcon = `<span class="text-[8px] text-emerald-600 font-bold ml-0.5">✓</span>`;
+              } else {
+                statusIcon = `<span class="text-[8px] text-red-500 font-bold ml-0.5">✕</span>`;
+              }
+            } else {
+              statusIcon = `<span class="text-[7px] text-slate-400 ml-0.5">⏳</span>`;
+            }
+          }
+
+          colsCells += `
+            <div class="col-span-2 flex items-center justify-center">
+              <span class="inline-flex items-center justify-center px-1 py-0.5 rounded text-[9px] font-bold min-w-[22px] ${
+                userPicks.length > 0
+                  ? (isCorrect ? 'bg-emerald-600 text-white shadow-sm' : (actualOutcome && status !== 'PENDING' ? 'bg-red-600 text-white' : 'bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900'))
+                  : 'bg-slate-100 dark:bg-slate-900 text-slate-400'
+              }">
+                ${userPicks.length > 0 ? userPicks.join('') : '-'}${statusIcon}
+              </span>
+            </div>
+          `;
+        }
+
+        let scoreDisplay = '-';
+        if (status === 'LIVE') scoreDisplay = `<span class="text-red-600 font-bold animate-pulse">${homeScore}-${awayScore}</span>`;
+        else if (status === 'FINISHED') scoreDisplay = `<span class="font-bold text-slate-700 dark:text-slate-200">${homeScore}-${awayScore}</span>`;
+
+        return `
+          <div class="grid grid-cols-12 py-1.5 px-2 items-center text-center text-[10px] border-b border-slate-100 dark:border-slate-700/50">
+            <div class="col-span-5 text-left min-w-0">
+              <div class="font-semibold text-slate-800 dark:text-slate-100 truncate leading-tight">${m.home}</div>
+              <div class="text-[9px] text-slate-400 truncate leading-tight">${m.away}</div>
+            </div>
+            ${colsCells}
+            <div class="col-span-1 text-center font-mono">${scoreDisplay}</div>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = `
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div class="p-2.5 bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+            <h3 class="font-bold text-xs text-slate-800 dark:text-slate-100">${activeCoupon.title}</h3>
+            <span class="text-[9px] bg-emerald-600 text-white font-bold px-1.5 py-0.5 rounded">Aktif Bülten</span>
+          </div>
+
+          <div class="grid grid-cols-12 text-[9px] font-bold text-slate-400 uppercase bg-slate-100/50 dark:bg-slate-800 py-1 px-2 text-center border-b border-slate-100 dark:border-slate-700">
+            <div class="col-span-5 text-left">Maç</div>
+            <div class="col-span-2">K1</div>
+            <div class="col-span-2">K2</div>
+            <div class="col-span-2">K3</div>
+            <div class="col-span-1">Skor</div>
+          </div>
+
+          <div>${matchesHtml}</div>
+
+          <div class="p-2 bg-slate-50 dark:bg-slate-700/80 font-bold text-xs border-t border-slate-200 dark:border-slate-700">
+            <div class="grid grid-cols-12 text-center items-center">
+              <div class="col-span-5 text-left text-[10px] text-slate-500 dark:text-slate-300">Tutan (15 Üzerinden):</div>
+              <div class="col-span-2"><span class="bg-emerald-600 text-white px-1.5 py-0.5 rounded text-[10px]">${colTotals[0]}</span></div>
+              <div class="col-span-2"><span class="bg-emerald-600 text-white px-1.5 py-0.5 rounded text-[10px]">${colTotals[1]}</span></div>
+              <div class="col-span-2"><span class="bg-emerald-600 text-white px-1.5 py-0.5 rounded text-[10px]">${colTotals[2]}</span></div>
+              <div class="col-span-1"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function openAdminModal() { document.getElementById('adminModal').classList.remove('hidden'); }
+    function closeAdminModal() { document.getElementById('adminModal').classList.add('hidden'); }
+
+    async function uploadCoupon() {
+      const pwd = document.getElementById('adminPassword').value;
+      const title = document.getElementById('couponTitle').value.trim() || 'Spor Toto Kuponu';
+      const text = document.getElementById('couponText').value.trim();
+      const btn = document.getElementById('uploadBtn');
+
+      if (!pwd || !text) { alert("Lütfen şifre ve kupon metnini girin."); return; }
+
+      btn.innerText = "Yayınlanıyor...";
+      btn.disabled = true;
+
+      let parsedMatches = Array.from({ length: TOTAL_MATCHES }, (_, i) => ({
+        id: i + 1, home: `Maç ${i + 1}`, away: "Bekleniyor", status: "PENDING", homeScore: null, awayScore: null
+      }));
+      let parsedColumns = [Array(TOTAL_MATCHES).fill([]), Array(TOTAL_MATCHES).fill([]), Array(TOTAL_MATCHES).fill([])];
+
+      const lines = text.split('\n').filter(l => l.trim().length > 0);
+      lines.forEach((line, idx) => {
+        if (idx < TOTAL_MATCHES) {
+          let cleanLine = line.replace(/^[0-9]+[\.\-\s]+/, '');
+          let parts = cleanLine.split('|');
+          let teamsPart = parts[0];
+          let teams = teamsPart.split(/\s+[-–vs]+\s+/i);
+          if (teams.length < 2) teams = teamsPart.split(/[-–vs]/i);
+
+          if (teams.length >= 2) {
+            parsedMatches[idx].home = cleanTeamName(teams[0]);
+            parsedMatches[idx].away = cleanTeamName(teams[1]);
+          }
+
+          if (parts.length > 1) {
+            for (let c = 1; c < parts.length && c <= 3; c++) {
+              let colText = parts[c];
+              let pickMatch = colText.match(/Kolon\s*\d+:\s*([0-12,\s]+)/i);
+              if (pickMatch) {
+                let picks = pickMatch[1].split(',').map(p => p.trim()).filter(p => ['1','0','2'].includes(p));
+                parsedColumns[c-1][idx] = picks;
+              }
+            }
           }
         }
+      });
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/admin/update-coupon`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd, title: title, matches_data: { matches: parsedMatches, columns: parsedColumns } })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          alert("Kupon başarıyla güncellendi!");
+          closeAdminModal();
+          loadData();
+        } else {
+          alert(data.message || "Hatalı şifre!");
+        }
+      } catch (e) {
+        alert("Sunucuya bağlanılamadı.");
+      } finally {
+        btn.innerText = "Yayınla";
+        btn.disabled = false;
       }
     }
-  });
 
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/admin/update-coupon`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pwd, title: title, matches_data: { matches: parsedMatches, columns: parsedColumns } })
-    });
-    const data = await res.json();
-    if (data.status === 'success') {
-      alert("Kupon başarıyla güncellendi!");
-      closeAdminModal();
+    window.onload = () => {
       loadData();
-    } else {
-      alert(data.message || "Hatalı şifre!");
-    }
-  } catch (e) {
-    alert("Sunucu uyanıyor olabilir, lütfen 10 saniye sonra tekrar deneyin.");
-  } finally {
-    btn.innerText = "Yayınla";
-    btn.disabled = false;
-  }
-}
+      setInterval(loadData, 10000);
+    };
+  </script>
+</body>
+</html>
