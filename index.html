@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spor Toto Takip</title>
+<style>
+:root{
+  --bg:#0f172a; --card:#1a2338; --card2:#212c47; --border:#2c3856;
+  --text:#e8ecf7; --muted:#8b96b5; --accent:#22c55e; --accent2:#16a34a;
+  --danger:#ef4444; --warn:#f59e0b; --live:#ef4444;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){ --bg:#f3f5fb; --card:#ffffff; --card2:#f1f3fa; --border:#e1e5f0; --text:#182036; --muted:#6b7590; }
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;min-height:100%}
+.wrap{max-width:720px;margin:0 auto;padding:16px}
+.hidden{display:none !important}
+h1{font-size:20px;margin:0}
+.top{position:sticky;top:0;top:env(safe-area-inset-top,0px);background:var(--bg);padding:14px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);z-index:5}
+.badge{font-size:11px;padding:3px 8px;border-radius:20px;background:var(--accent);color:#04220f;font-weight:700}
+.btn{background:var(--accent);color:#04220f;border:none;padding:10px 16px;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px}
+.btn:active{opacity:.8}
+.btn.secondary{background:var(--card2);color:var(--text);border:1px solid var(--border)}
+.btn.small{padding:6px 10px;font-size:12px;border-radius:8px}
+input,select{width:100%;padding:11px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-size:14px;margin-top:6px}
+label{font-size:12px;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px}
+.tabs{display:flex;gap:8px;margin:14px 0;overflow-x:auto}
+.tab{padding:8px 14px;border-radius:20px;background:var(--card2);color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid var(--border)}
+.tab.active{background:var(--accent);color:#04220f;border-color:var(--accent)}
+.match-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+.match-row:last-child{border-bottom:none}
+.teams{flex:1}
+.pred-select{width:auto;margin:0;padding:6px 8px;font-size:12px}
+.status{font-size:11px;padding:2px 7px;border-radius:6px;font-weight:700}
+.st-PENDING{background:var(--card2);color:var(--muted)}
+.st-LIVE{background:var(--live);color:#fff}
+.st-FINISHED{background:var(--card2);color:var(--text)}
+.res-ok{color:var(--accent);font-weight:700}
+.res-bad{color:var(--danger);font-weight:700}
+.userchip{display:inline-flex;align-items:center;gap:6px;background:var(--card2);border:1px solid var(--border);padding:6px 10px;border-radius:20px;margin:3px;font-size:13px;cursor:pointer}
+.userchip.sel{background:var(--accent);color:#04220f;border-color:var(--accent)}
+.err{color:var(--danger);font-size:13px;margin-top:8px}
+.muted{color:var(--muted);font-size:12px}
+.coup-title{font-weight:700;font-size:15px;margin-bottom:2px}
+.overall{font-size:12px;font-weight:700;padding:3px 9px;border-radius:8px;display:inline-block;margin-bottom:8px}
+.ov-win{background:#0f3d24;color:var(--accent)}
+.ov-lose{background:#3d1414;color:var(--danger)}
+.ov-going{background:var(--card2);color:var(--warn)}
+.loading{text-align:center;color:var(--muted);padding:20px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><h1>⚽ Spor Toto Takip</h1><div id="userBox"></div></div>
+
+  <div id="authScreen" class="card" style="margin-top:16px">
+    <div class="tabs">
+      <div class="tab active" id="tabLogin">Giriş Yap</div>
+      <div class="tab" id="tabRegister">Kayıt Ol</div>
+    </div>
+    <label>Kullanıcı Adı</label>
+    <input id="authUser" placeholder="kullanici_adi">
+    <label>Şifre</label>
+    <input id="authPass" type="password" placeholder="••••••">
+    <button class="btn" id="authSubmit" style="width:100%;margin-top:14px">Giriş Yap</button>
+    <div class="err hidden" id="authErr"></div>
+  </div>
+
+  <div id="appScreen" class="hidden">
+    <div class="tabs">
+      <div class="tab active" data-view="coupons">Kuponlarım</div>
+      <div class="tab" data-view="create">Kupon Oluştur</div>
+    </div>
+
+    <div id="viewCoupons"></div>
+
+    <div id="viewCreate" class="hidden">
+      <div class="card">
+        <label>Kupon Başlığı</label>
+        <input id="cTitle" placeholder="Örn: Hafta Sonu Kuponu">
+        <div id="targetUsersBox" class="hidden" style="margin-top:12px">
+          <label>Kimler görebilsin?</label>
+          <div id="userChips" style="margin-top:6px"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <label>Maçlar</label>
+          <button class="btn small secondary" id="refreshMatches">Yenile</button>
+        </div>
+        <div id="matchList"><div class="loading">Maçlar yükleniyor...</div></div>
+      </div>
+      <button class="btn" id="saveCoupon" style="width:100%">Kuponu Kaydet</button>
+      <div class="err hidden" id="createErr"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "https://sportoto-backend.onrender.com";
+let user = JSON.parse(localStorage.getItem("st_user") || "null");
+let authMode = "login";
+let allMatches = [];
+let selected = {}; // idx -> prediction
+let users = [];
+let targetSel = {};
+let scoresCache = null;
+
+const $ = s => document.querySelector(s);
+
+function saveUser(u){ user = u; localStorage.setItem("st_user", JSON.stringify(u)); }
+function logout(){ localStorage.removeItem("st_user"); user = null; render(); }
+
+$("#tabLogin").onclick = () => { authMode="login"; $("#tabLogin").classList.add("active"); $("#tabRegister").classList.remove("active"); $("#authSubmit").textContent="Giriş Yap"; };
+$("#tabRegister").onclick = () => { authMode="register"; $("#tabRegister").classList.add("active"); $("#tabLogin").classList.remove("active"); $("#authSubmit").textContent="Kayıt Ol"; };
+
+$("#authSubmit").onclick = async () => {
+  const username = $("#authUser").value.trim();
+  const password = $("#authPass").value.trim();
+  const errBox = $("#authErr");
+  errBox.classList.add("hidden");
+  if(!username || !password){ errBox.textContent="Kullanıcı adı ve şifre gerekli."; errBox.classList.remove("hidden"); return; }
+  try{
+    const res = await fetch(`${API}/api/${authMode === "login" ? "login" : "register"}`, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({username, password})
+    });
+    const data = await res.json();
+    if(data.status !== "success"){ errBox.textContent = data.message || "Bir hata oluştu."; errBox.classList.remove("hidden"); return; }
+    if(authMode === "register"){ authMode="login"; $("#tabLogin").click(); errBox.textContent="Kayıt başarılı, şimdi giriş yapabilirsin."; errBox.style.color="var(--accent)"; errBox.classList.remove("hidden"); return; }
+    saveUser(data.user);
+    render();
+  }catch(e){ errBox.textContent="Sunucuya ulaşılamadı. Backend uyanıyor olabilir, birkaç saniye sonra tekrar dene."; errBox.classList.remove("hidden"); }
+};
+
+document.querySelectorAll('[data-view]').forEach(tab=>{
+  tab.onclick = () => {
+    document.querySelectorAll('[data-view]').forEach(t=>t.classList.remove("active"));
+    tab.classList.add("active");
+    const view = tab.dataset.view;
+    $("#viewCoupons").classList.toggle("hidden", view!=="coupons");
+    $("#viewCreate").classList.toggle("hidden", view!=="create");
+    if(view==="coupons") loadCoupons();
+    if(view==="create") loadCreateView();
+  };
+});
+
+async function loadCreateView(){
+  if(user.role === "admin"){
+    $("#targetUsersBox").classList.remove("hidden");
+    if(users.length===0){
+      try{
+        const r = await fetch(`${API}/api/users`); const d = await r.json();
+        users = d.users || [];
+      }catch(e){}
+    }
+    $("#userChips").innerHTML = users.map(u=>
+      `<span class="userchip ${targetSel[u.id]?'sel':''}" data-uid="${u.id}">${u.username}</span>`
+    ).join("") || '<span class="muted">Başka kullanıcı yok.</span>';
+    document.querySelectorAll('.userchip').forEach(c=>{
+      c.onclick = () => { const id=c.dataset.uid; targetSel[id] = !targetSel[id]; c.classList.toggle('sel'); };
+    });
+  }
+  if(allMatches.length===0) await loadMatches();
+}
+
+async function loadMatches(){
+  $("#matchList").innerHTML = '<div class="loading">Maçlar yükleniyor... (biraz sürebilir)</div>';
+  try{
+    const r = await fetch(`${API}/api/scores`);
+    const d = await r.json();
+    allMatches = d.matches || [];
+    renderMatchList();
+  }catch(e){
+    $("#matchList").innerHTML = '<div class="err">Maçlar yüklenemedi, "Yenile"ye tekrar bas.</div>';
+  }
+}
+$("#refreshMatches").onclick = loadMatches;
+
+function renderMatchList(){
+  if(allMatches.length===0){ $("#matchList").innerHTML='<div class="muted">Maç bulunamadı.</div>'; return; }
+  $("#matchList").innerHTML = allMatches.map((m,i)=>`
+    <div class="match-row">
+      <input type="checkbox" data-idx="${i}" class="mchk" ${selected[i]!==undefined?'checked':''}>
+      <div class="teams">${m.home} vs ${m.away}<div class="muted">${m.matchTime}</div></div>
+      <select class="pred-select mpred" data-idx="${i}" ${selected[i]===undefined?'disabled':''}>
+        <option value="MS1" ${selected[i]==='MS1'?'selected':''}>MS1</option>
+        <option value="X" ${selected[i]==='X'?'selected':''}>X</option>
+        <option value="MS2" ${selected[i]==='MS2'?'selected':''}>MS2</option>
+      </select>
+    </div>`).join("");
+  document.querySelectorAll('.mchk').forEach(c=>{
+    c.onchange = () => {
+      const i = c.dataset.idx;
+      if(c.checked){ selected[i] = 'MS1'; } else { delete selected[i]; }
+      renderMatchList();
+    };
+  });
+  document.querySelectorAll('.mpred').forEach(s=>{
+    s.onchange = () => { selected[s.dataset.idx] = s.value; };
+  });
+}
+
+$("#saveCoupon").onclick = async () => {
+  const errBox = $("#createErr"); errBox.classList.add("hidden");
+  const title = $("#cTitle").value.trim() || "Spor Toto Kuponum";
+  const idxs = Object.keys(selected);
+  if(idxs.length===0){ errBox.textContent="En az bir maç seçmelisin."; errBox.classList.remove("hidden"); return; }
+  const matches_data = idxs.map(i => ({...allMatches[i], prediction: selected[i]}));
+  const body = { user_id: user.id, title, matches_data };
+  if(user.role==="admin"){ body.target_user_ids = Object.keys(targetSel).filter(k=>targetSel[k]).map(Number); }
+  try{
+    const r = await fetch(`${API}/api/save-coupon`, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
+    const d = await r.json();
+    if(d.status!=="success"){ errBox.textContent = d.message||"Kaydedilemedi."; errBox.classList.remove("hidden"); return; }
+    selected = {}; targetSel = {}; $("#cTitle").value="";
+    document.querySelector('[data-view="coupons"]').click();
+  }catch(e){ errBox.textContent="Kaydedilemedi, tekrar dene."; errBox.classList.remove("hidden"); }
+};
+
+function resultOf(m){
+  if(m.status!=="FINISHED") return null;
+  if(m.homeScore>m.awayScore) return "MS1";
+  if(m.homeScore<m.awayScore) return "MS2";
+  return "X";
+}
+
+async function loadCoupons(){
+  $("#viewCoupons").innerHTML = '<div class="loading">Kuponlar yükleniyor...</div>';
+  try{
+    const [cr, sr] = await Promise.all([
+      fetch(`${API}/api/user/coupons/${user.id}`),
+      fetch(`${API}/api/scores`)
+    ]);
+    const cd = await cr.json();
+    const sd = await sr.json();
+    scoresCache = sd.matches || [];
+    const coupons = cd.coupons || [];
+    if(coupons.length===0){ $("#viewCoupons").innerHTML='<div class="card muted">Henüz kuponun yok.</div>'; return; }
+    $("#viewCoupons").innerHTML = coupons.map(c=>{
+      const rows = (c.matches_data||[]).map(m=>{
+        const live = scoresCache.find(s=>s.home===m.home && s.away===m.away) || m;
+        const res = resultOf(live);
+        let resHtml = "";
+        if(res){ resHtml = res===m.prediction ? '<span class="res-ok">✓</span>' : '<span class="res-bad">✗</span>'; }
+        const score = (live.status==="PENDING") ? "" : `${live.homeScore??0}-${live.awayScore??0}`;
+        return `<div class="match-row">
+          <div class="teams">${m.home} vs ${m.away}<div class="muted">Tahmin: ${m.prediction||"-"}</div></div>
+          <span class="status st-${live.status||'PENDING'}">${score||live.status||'PENDING'}</span>
+          ${resHtml}
+        </div>`;
+      }).join("");
+      const list = c.matches_data||[];
+      const finishedAll = list.length>0 && list.every(m=>{ const l=scoresCache.find(s=>s.home===m.home&&s.away===m.away); return l && l.status==="FINISHED"; });
+      let overall = '<span class="overall ov-going">Devam Ediyor</span>';
+      if(finishedAll){
+        const allCorrect = list.every(m=>{ const l=scoresCache.find(s=>s.home===m.home&&s.away===m.away); return resultOf(l)===m.prediction; });
+        overall = allCorrect ? '<span class="overall ov-win">Kazandı</span>' : '<span class="overall ov-lose">Kaybetti</span>';
+      }
+      return `<div class="card">
+        <div class="coup-title">${c.title}</div>
+        <div class="muted" style="margin-bottom:6px">${c.created_by===user.id ? 'Kendi kuponun' : 'Paylaşılan kupon'}</div>
+        ${overall}
+        ${rows}
+      </div>`;
+    }).join("");
+  }catch(e){
+    $("#viewCoupons").innerHTML = '<div class="card err">Kuponlar yüklenemedi. Backend uyanıyor olabilir, biraz bekleyip sekmeye tekrar tıkla.</div>';
+  }
+}
+
+function render(){
+  if(user){
+    $("#authScreen").classList.add("hidden");
+    $("#appScreen").classList.remove("hidden");
+    $("#userBox").innerHTML = `<span class="badge">${user.role==='admin'?'ADMIN':'ÜYE'}</span> <span class="muted" style="margin:0 8px">${user.username}</span><button class="btn small secondary" id="logoutBtn">Çıkış</button>`;
+    $("#logoutBtn").onclick = logout;
+    loadCoupons();
+  } else {
+    $("#authScreen").classList.remove("hidden");
+    $("#appScreen").classList.add("hidden");
+    $("#userBox").innerHTML = "";
+  }
+}
+render();
+</script>
+</body>
+</html>
