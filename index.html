@@ -75,24 +75,23 @@ textarea{width:100%;padding:11px;border-radius:10px;border:1px solid var(--borde
     <div class="card">
       <label>Kupon Başlığı</label>
       <input id="cTitle" placeholder="Örn: Hafta Sonu Kuponu">
-    </div>
-    <div class="card">
-      <label>Kuponu yazı olarak yapıştır (opsiyonel)</label>
+      <label style="margin-top:12px;display:block">Kuponu bu formatta yapıştır</label>
       <div class="muted" style="margin:4px 0">1. Türkiye - Fransa | Kolon 1: 1 | Kolon 2: 1,0 | Kolon 3: 2</div>
       <textarea id="manualText" placeholder="1. Türkiye - Fransa | Kolon 1: 1 | Kolon 2: 1,0 | Kolon 3: 2"></textarea>
-      <button class="btn small secondary" id="parseManualBtn" style="margin-top:8px">Ayrıştır ve Tabloya Ekle</button>
-      <div class="err hidden" id="parseErr"></div>
+      <button class="btn" id="createFromText" style="width:100%;margin-top:10px">Kuponu Oluştur ve Yayınla</button>
+      <div class="err hidden" id="createErr"></div>
     </div>
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <label>Veya elle ekleyip düzenle</label>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px">
         <label>Kolon Sayısı</label>
         <input id="kolonCountInput" type="number" min="1" max="8" value="3" style="width:70px;margin:0">
       </div>
       <div class="tblwrap"><table id="rowsTable"></table></div>
       <button class="btn small secondary" id="addRow" style="margin-top:10px">+ Maç Ekle</button>
+      <button class="btn small secondary" id="parseManualBtn" style="margin-top:10px">Yapıştırılanı Tabloya Aktar</button>
+      <button class="btn" id="saveCoupon" style="width:100%;margin-top:10px">Tablodakini Kaydet ve Yayınla</button>
     </div>
-    <button class="btn" id="saveCoupon" style="width:100%">Kuponu Kaydet ve Yayınla</button>
-    <div class="err hidden" id="createErr"></div>
   </div>
 
   <div id="publicList"><div class="loading">Kuponlar yükleniyor...</div></div>
@@ -206,8 +205,29 @@ function parseLine(line){
 function parseManualText(text){
   return text.split("\n").map(l=>l.trim()).filter(Boolean).map(parseLine).filter(Boolean);
 }
+async function saveCouponData(matches_data){
+  const errBox = $("#createErr"); errBox.classList.add("hidden");
+  const title = $("#cTitle").value.trim() || "Spor Toto Kuponum";
+  try{
+    const r = await fetch(`${API}/api/save-coupon`, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ user_id: admin.id, title, matches_data })});
+    const d = await r.json();
+    if(d.status!=="success"){ errBox.textContent = d.message||"Kaydedilemedi."; errBox.classList.remove("hidden"); return false; }
+    $("#cTitle").value=""; $("#manualText").value="";
+    couponRows = []; ensureOneRow(); renderRowsTable();
+    loadPublicList();
+    return true;
+  }catch(e){ errBox.textContent="Kaydedilemedi, tekrar dene."; errBox.classList.remove("hidden"); return false; }
+}
+
+$("#createFromText").onclick = () => {
+  const errBox = $("#createErr"); errBox.classList.add("hidden");
+  const parsed = parseManualText($("#manualText").value);
+  if(parsed.length===0){ errBox.textContent="Hiç maç ayrıştırılamadı, formatı kontrol et (Ev - Deplasman | Kolon 1: ... )."; errBox.classList.remove("hidden"); return; }
+  saveCouponData({ matches: parsed });
+};
+
 $("#parseManualBtn").onclick = () => {
-  const errBox = $("#parseErr"); errBox.classList.add("hidden");
+  const errBox = $("#createErr"); errBox.classList.add("hidden");
   const parsed = parseManualText($("#manualText").value);
   if(parsed.length===0){ errBox.textContent="Hiç maç ayrıştırılamadı, formatı kontrol et."; errBox.classList.remove("hidden"); return; }
   kolonCount = Math.max(kolonCount, ...parsed.map(p=>p.kolon.length), 1);
@@ -218,7 +238,6 @@ $("#parseManualBtn").onclick = () => {
     return {home:p.home, away:p.away, kolon:k};
   });
   renderRowsTable();
-  $("#manualText").value = "";
 };
 
 $("#addRow").onclick = () => { couponRows.push(newRow()); renderRowsTable(); };
@@ -231,19 +250,11 @@ $("#kolonCountInput").onchange = (e) => {
   renderRowsTable();
 };
 
-$("#saveCoupon").onclick = async () => {
+$("#saveCoupon").onclick = () => {
   const errBox = $("#createErr"); errBox.classList.add("hidden");
-  const title = $("#cTitle").value.trim() || "Spor Toto Kuponum";
   const valid = couponRows.filter(r=>r.home.trim() && r.away.trim());
   if(valid.length===0){ errBox.textContent="En az bir maçın ev/deplasman adını gir."; errBox.classList.remove("hidden"); return; }
-  const matches_data = { matches: valid.map(r=>({home:r.home.trim(), away:r.away.trim(), kolon:r.kolon})) };
-  try{
-    const r = await fetch(`${API}/api/save-coupon`, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ user_id: admin.id, title, matches_data })});
-    const d = await r.json();
-    if(d.status!=="success"){ errBox.textContent = d.message||"Kaydedilemedi."; errBox.classList.remove("hidden"); return; }
-    couponRows = []; ensureOneRow(); renderRowsTable(); $("#cTitle").value="";
-    loadPublicList();
-  }catch(e){ errBox.textContent="Kaydedilemedi, tekrar dene."; errBox.classList.remove("hidden"); }
+  saveCouponData({ matches: valid.map(r=>({home:r.home.trim(), away:r.away.trim(), kolon:r.kolon})) });
 };
 
 // ---- Canlı eşleştirme ----
