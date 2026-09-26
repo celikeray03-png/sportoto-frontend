@@ -13,15 +13,13 @@
     <header class="bg-slate-800 p-3 rounded-xl border border-slate-700 flex justify-between items-center shadow">
       <div>
         <h1 class="font-bold text-sm text-emerald-400">⚽ Spor Toto Canlı Takip</h1>
-        <p class="text-[10px] text-slate-400" id="syncTime">Canlı Skorlar Yükleniyor...</p>
+        <p class="text-[10px] text-slate-400" id="syncTime">Yükleniyor...</p>
       </div>
       <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[10px] font-semibold animate-pulse">Canlı</span>
     </header>
 
     <!-- KUPON TABLOSU -->
-    <div id="content" class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow">
-      <div class="text-center text-xs text-slate-400 py-10">Maç skorları çekiliyor...</div>
-    </div>
+    <div id="content" class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow"></div>
 
   </div>
 
@@ -29,22 +27,25 @@
     const API = "https://sportoto-backend.onrender.com";
 
     const COUPON_DATA = [
-      { home: "Türkiye", away: "Fransa", cols: [["2"], ["2"], ["2"]] },
-      { home: "Türkiye", away: "İtalya", cols: [["1"], ["1"], ["1"]] },
-      { home: "İsveç", away: "Romanya", cols: [["1"], ["1"], ["0"]] },
-      { home: "İtalya", away: "Belçika", cols: [["2"], ["0"], ["2"]] },
-      { home: "Slovenya", away: "İskoçya", cols: [["2"], ["2"], ["0"]] },
-      { home: "Bulgaristan", away: "Lüksemburg", cols: [["1"], ["1"], ["1"]] },
-      { home: "Kuzey Makedonya", away: "İsviçre", cols: [["1"], ["2"], ["2"]] },
-      { home: "Çekya", away: "Hırvatistan", cols: [["1"], ["2"], ["2"]] },
-      { home: "İngiltere", away: "İspanya", cols: [["1"], ["0"], ["2"]] },
-      { home: "Litvanya", away: "Azerbaycan", cols: [["1"], ["2"], ["0"]] },
-      { home: "Avusturya", away: "Kosova", cols: [["2"], ["1"], ["0"]] },
-      { home: "Danimarka", away: "Galler", cols: [["1"], ["1"], ["1"]] },
-      { home: "Sırbistan", away: "Hollanda", cols: [["1"], ["2"], ["2"]] },
-      { home: "Almanya", away: "Yunanistan", cols: [["1"], ["1"], ["1"]] },
-      { home: "Norveç", away: "Portekiz", cols: [["1", "2"], ["1"], ["2"]] }
+      { id: 1, home: "Türkiye", away: "Fransa", cols: [["2"], ["2"], ["2"]] },
+      { id: 2, home: "Türkiye", away: "İtalya", cols: [["1"], ["1"], ["1"]] },
+      { id: 3, home: "İsveç", away: "Romanya", cols: [["1"], ["1"], ["0"]] },
+      { id: 4, home: "İtalya", away: "Belçika", cols: [["2"], ["0"], ["2"]] },
+      { id: 5, home: "Slovenya", away: "İskoçya", cols: [["2"], ["2"], ["0"]] },
+      { id: 6, home: "Bulgaristan", away: "Lüksemburg", cols: [["1"], ["1"], ["1"]] },
+      { id: 7, home: "Kuzey Makedonya", away: "İsviçre", cols: [["1"], ["2"], ["2"]] },
+      { id: 8, home: "Çekya", away: "Hırvatistan", cols: [["1"], ["2"], ["2"]] },
+      { id: 9, home: "İngiltere", away: "İspanya", cols: [["1"], ["0"], ["2"]] },
+      { id: 10, home: "Litvanya", away: "Azerbaycan", cols: [["1"], ["2"], ["0"]] },
+      { id: 11, home: "Avusturya", away: "Kosova", cols: [["2"], ["1"], ["0"]] },
+      { id: 12, home: "Danimarka", away: "Galler", cols: [["1"], ["1"], ["1"]] },
+      { id: 13, home: "Sırbistan", away: "Hollanda", cols: [["1"], ["2"], ["2"]] },
+      { id: 14, home: "Almanya", away: "Yunanistan", cols: [["1"], ["1"], ["1"]] },
+      { id: 15, home: "Norveç", away: "Portekiz", cols: [["1", "2"], ["1"], ["2"]] }
     ];
+
+    // Önbellekteki skorları al veya boş nesne oluştur
+    let cachedScores = JSON.parse(localStorage.getItem('st_cached_scores') || '{}');
 
     function normalize(s) {
       if (!s) return '';
@@ -53,90 +54,119 @@
         .replace(/[^a-z0-9]/g, '');
     }
 
-    async function loadScores() {
+    function renderTable() {
+      let totals = [0, 0, 0];
+
+      let html = COUPON_DATA.map((m) => {
+        let saved = cachedScores[m.id] || {};
+        let hScore = saved.homeScore !== undefined ? saved.homeScore : 0;
+        let aScore = saved.awayScore !== undefined ? saved.awayScore : 0;
+        let st = saved.status || 'PENDING';
+        let mTime = saved.matchTime || '--:--';
+        let mDate = saved.matchDate || '';
+
+        let outcome = (st !== 'PENDING') ? (hScore > aScore ? '1' : (hScore < aScore ? '2' : '0')) : null;
+
+        let colCells = [0, 1, 2].map(c => {
+          let picks = m.cols[c];
+          let correct = outcome && picks.includes(outcome);
+          if (correct && st === 'FINISHED') totals[c]++;
+
+          let cls = 'bg-slate-700 text-slate-200';
+          if (correct) cls = 'bg-emerald-600 text-white font-bold shadow';
+          else if (outcome && st !== 'PENDING') cls = 'bg-red-600/80 text-white';
+
+          return `
+            <div class="col-span-2 flex justify-center">
+              <span class="px-1.5 py-0.5 rounded text-[10px] ${cls}">${picks.join('')}</span>
+            </div>`;
+        }).join('');
+
+        let scoreDisplay = `<div class="text-[8px] text-slate-400 leading-tight">${mDate}</div><div class="text-[9px] text-slate-300 font-mono font-bold">${mTime}</div>`;
+        if (st === 'LIVE') scoreDisplay = `<span class="text-red-500 font-bold animate-pulse text-[10px]">${hScore}-${aScore}</span>`;
+        else if (st === 'FINISHED') scoreDisplay = `<span class="font-bold text-slate-200 text-[10px]">${hScore}-${aScore}</span>`;
+
+        return `
+          <div class="grid grid-cols-12 py-2 px-2 items-center text-center text-[10px] border-b border-slate-700/50">
+            <div class="col-span-5 text-left truncate">
+              <div class="font-bold text-slate-200 truncate">${m.home}</div>
+              <div class="text-slate-400 truncate">${m.away}</div>
+            </div>
+            ${colCells}
+            <div class="col-span-1 flex flex-col items-center justify-center">${scoreDisplay}</div>
+          </div>`;
+      }).join('');
+
+      document.getElementById('content').innerHTML = `
+        <div class="grid grid-cols-12 text-[9px] font-bold text-slate-400 bg-slate-900/60 py-1.5 px-2 text-center border-b border-slate-700 uppercase">
+          <div class="col-span-5 text-left">Maç</div>
+          <div class="col-span-2">K1</div>
+          <div class="col-span-2">K2</div>
+          <div class="col-span-2">K3</div>
+          <div class="col-span-1">Durum</div>
+        </div>
+        <div>${html}</div>
+        <div class="p-2.5 bg-slate-900/80 grid grid-cols-12 text-center text-xs font-bold border-t border-slate-700 items-center">
+          <div class="col-span-5 text-left text-[10px] text-slate-400">Tutan Maç (15/):</div>
+          <div class="col-span-2"><span class="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px]">${totals[0]}</span></div>
+          <div class="col-span-2"><span class="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px]">${totals[1]}</span></div>
+          <div class="col-span-2"><span class="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px]">${totals[2]}</span></div>
+          <div class="col-span-1"></div>
+        </div>
+      `;
+    }
+
+    async function fetchScores() {
       try {
         const res = await fetch(API + '/api/scores');
         const data = await res.json();
         const scores = data.matches || [];
 
-        document.getElementById('syncTime').innerText = 'Son Güncelleme: ' + new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+        let hasUpdates = false;
 
-        let totals = [0, 0, 0];
+        COUPON_DATA.forEach(m => {
+          // Biten bir maç zaten kayıtlıysa tekrar güncelleme yapma
+          if (cachedScores[m.id] && cachedScores[m.id].status === 'FINISHED') return;
 
-        let html = COUPON_DATA.map((m, i) => {
           let lm = scores.find(s => 
             (normalize(s.home).includes(normalize(m.home)) || normalize(m.home).includes(normalize(s.home))) && 
             (normalize(s.away).includes(normalize(m.away)) || normalize(m.away).includes(normalize(s.away)))
           );
 
-          let hScore = lm ? lm.homeScore : 0;
-          let aScore = lm ? lm.awayScore : 0;
-          let st = lm ? lm.status : 'PENDING';
-          let mTime = (lm && lm.matchTime) ? lm.matchTime : '--:--';
-          let mDate = (lm && lm.matchDate) ? lm.matchDate : '';
+          if (lm) {
+            cachedScores[m.id] = {
+              homeScore: lm.homeScore,
+              awayScore: lm.awayScore,
+              status: lm.status,
+              matchTime: lm.matchTime,
+              matchDate: lm.matchDate
+            };
+            hasUpdates = true;
+          }
+        });
 
-          let outcome = (st !== 'PENDING') ? (hScore > aScore ? '1' : (hScore < aScore ? '2' : '0')) : null;
+        if (hasUpdates) {
+          localStorage.setItem('st_cached_scores', JSON.stringify(cachedScores));
+          renderTable();
+        }
 
-          let colCells = [0, 1, 2].map(c => {
-            let picks = m.cols[c];
-            let correct = outcome && picks.includes(outcome);
-            if (correct && st === 'FINISHED') totals[c]++;
-
-            let cls = 'bg-slate-700 text-slate-200';
-            if (correct) cls = 'bg-emerald-600 text-white font-bold shadow';
-            else if (outcome && st !== 'PENDING') cls = 'bg-red-600/80 text-white';
-
-            return `
-              <div class="col-span-2 flex justify-center">
-                <span class="px-1.5 py-0.5 rounded text-[10px] ${cls}">${picks.join('')}</span>
-              </div>`;
-          }).join('');
-
-          // Görünüm: Maç başladıysa/bittiyse SKOR, oynanmadıysa TARİH + SAAT
-          let scoreDisplay = `<div class="text-[8px] text-slate-400 leading-tight">${mDate}</div><div class="text-[9px] text-slate-300 font-mono font-bold">${mTime}</div>`;
-          if (st === 'LIVE') scoreDisplay = `<span class="text-red-500 font-bold animate-pulse text-[10px]">${hScore}-${aScore}</span>`;
-          else if (st === 'FINISHED') scoreDisplay = `<span class="font-bold text-slate-200 text-[10px]">${hScore}-${aScore}</span>`;
-
-          return `
-            <div class="grid grid-cols-12 py-2 px-2 items-center text-center text-[10px] border-b border-slate-700/50">
-              <div class="col-span-5 text-left truncate">
-                <div class="font-bold text-slate-200 truncate">${m.home}</div>
-                <div class="text-slate-400 truncate">${m.away}</div>
-              </div>
-              ${colCells}
-              <div class="col-span-1 flex flex-col items-center justify-center">${scoreDisplay}</div>
-            </div>`;
-        }).join('');
-
-        document.getElementById('content').innerHTML = `
-          <div class="grid grid-cols-12 text-[9px] font-bold text-slate-400 bg-slate-900/60 py-1.5 px-2 text-center border-b border-slate-700 uppercase">
-            <div class="col-span-5 text-left">Maç</div>
-            <div class="col-span-2">K1</div>
-            <div class="col-span-2">K2</div>
-            <div class="col-span-2">K3</div>
-            <div class="col-span-1">Durum</div>
-          </div>
-          <div>${html}</div>
-          <div class="p-2.5 bg-slate-900/80 grid grid-cols-12 text-center text-xs font-bold border-t border-slate-700 items-center">
-            <div class="col-span-5 text-left text-[10px] text-slate-400">Tutan Maç (15/):</div>
-            <div class="col-span-2"><span class="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px]">${totals[0]}</span></div>
-            <div class="col-span-2"><span class="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px]">${totals[1]}</span></div>
-            <div class="col-span-2"><span class="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px]">${totals[2]}</span></div>
-            <div class="col-span-1"></div>
-          </div>
-        `;
+        document.getElementById('syncTime').innerText = 'Son Güncelleme: ' + new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 
       } catch (e) {
-        document.getElementById('content').innerHTML = `
-          <div class="p-6 text-center text-xs text-amber-400">
-            Render sunucusu uyanıyor, lütfen 15 saniye sonra sayfayı yenileyin...
-          </div>`;
+        document.getElementById('syncTime').innerText = 'Skorlar güncellenemiyor (Sunucu uykuda olabilir)';
       }
     }
 
     window.onload = () => {
-      loadScores();
-      setInterval(loadScores, 15000);
+      // 1. Sayfa açılır açılmaz anında bülteni ve önbellekteki skorları çiz
+      renderTable();
+      document.getElementById('syncTime').innerText = 'Önbellekten Yüklendi';
+
+      // 2. Arka planda canlı skorları getir
+      fetchScores();
+
+      // 3. Her 30 saniyede bir kontrol et
+      setInterval(fetchScores, 30000);
     };
   </script>
 </body>
