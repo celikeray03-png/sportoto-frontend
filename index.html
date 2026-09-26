@@ -153,18 +153,27 @@
       `;
     }
 
-   async function fetchScores() {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000); // 4 saniye timeout
-
+    async function fetchScores() {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 saniye yeterli süre
+
         const res = await fetch(API + '/api/scores', { signal: controller.signal });
         clearTimeout(timeoutId);
         
         const data = await res.json();
         const scores = data.matches || [];
 
+        if (scores.length === 0) return;
+
         let hasUpdates = false;
+
+        // Performans Optimizasyonu: API maçlarını önceden normalize edip haritalıyoruz
+        const mappedScores = scores.map(s => ({
+          ...s,
+          cleanHome: cleanStr(s.home),
+          cleanAway: cleanStr(s.away)
+        }));
 
         COUPON_DATA.forEach(m => {
           if (cachedScores[m.id] && cachedScores[m.id].status === 'FINISHED') return;
@@ -172,13 +181,10 @@
           let normHome = cleanStr(m.home);
           let normAway = cleanStr(m.away);
 
-          let lm = scores.find(s => {
-            let apiHome = cleanStr(s.home);
-            let apiAway = cleanStr(s.away);
-
-            return (apiHome.includes(normHome) || normHome.includes(apiHome)) &&
-                   (apiAway.includes(normAway) || normAway.includes(apiAway));
-          });
+          let lm = mappedScores.find(s => 
+            (s.cleanHome.includes(normHome) || normHome.includes(s.cleanHome)) &&
+            (s.cleanAway.includes(normAway) || normAway.includes(s.cleanAway))
+          );
 
           if (lm) {
             cachedScores[m.id] = {
@@ -201,8 +207,7 @@
         document.getElementById('syncTime').innerText = 'Son Güncelleme: ' + new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 
       } catch (e) {
-        document.getElementById('syncTime').innerText = 'Sunucu uyanıyor (Tekrar deneniyor...)';
-        // Hata durumunda 5 saniye sonra tekrar dene
+        document.getElementById('syncTime').innerText = 'Sunucu bekleniyor...';
         setTimeout(fetchScores, 5000);
       }
     }
