@@ -44,14 +44,45 @@
       { id: 15, home: "Norveç", away: "Portekiz", cols: [["1", "2"], ["1"], ["2"]] }
     ];
 
-    // Önbellekteki skorları al veya boş nesne oluştur
+    const TEAM_MAP = {
+      "turkey": "turkiye", "turkiye": "turkiye",
+      "france": "fransa", "fransa": "fransa",
+      "italy": "italya", "italya": "italya",
+      "sweden": "isvec", "isvec": "isvec",
+      "romania": "romanya", "romanya": "romanya",
+      "belgium": "belcika", "belcika": "belcika",
+      "slovenia": "slovenya", "slovenya": "slovenya",
+      "scotland": "iskocya", "iskocya": "iskocya",
+      "bulgaria": "bulgaristan", "bulgaristan": "bulgaristan",
+      "luxembourg": "luksemburg", "luksemburg": "luksemburg",
+      "north macedonia": "kuzey makedonya", "kuzey makedonya": "kuzey makedonya",
+      "switzerland": "isvicre", "isvicre": "isvicre",
+      "czechia": "cekya", "czech republic": "cekya", "cekya": "cekya",
+      "croatia": "hirvatistan", "hirvatistan": "hirvatistan",
+      "england": "ingiltere", "ingiltere": "ingiltere",
+      "spain": "ispanya", "ispanya": "ispanya",
+      "lithuania": "litvanya", "litvanya": "litvanya",
+      "azerbaijan": "azerbaycan", "azerbaycan": "azerbaycan",
+      "austria": "avusturya", "avusturya": "avusturya",
+      "kosovo": "kosova", "kosova": "kosova",
+      "denmark": "danimarka", "danimarka": "danimarka",
+      "wales": "galler", "galler": "galler",
+      "serbia": "sirbistan", "sirbistan": "sirbistan",
+      "netherlands": "hollanda", "hollanda": "hollanda",
+      "germany": "almanya", "almanya": "almanya",
+      "greece": "yunanistan", "yunanistan": "yunanistan",
+      "norway": "norvec", "norvec": "norvec",
+      "portugal": "portekiz", "portekiz": "portekiz"
+    };
+
     let cachedScores = JSON.parse(localStorage.getItem('st_cached_scores') || '{}');
 
-    function normalize(s) {
+    function cleanStr(s) {
       if (!s) return '';
-      return s.toLowerCase()
+      let lower = s.toLowerCase()
         .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c')
-        .replace(/[^a-z0-9]/g, '');
+        .replace(/[^a-z0-9\s]/g, '').trim();
+      return TEAM_MAP[lower] || lower.replace(/\s+/g, '');
     }
 
     function renderTable() {
@@ -125,13 +156,18 @@
         let hasUpdates = false;
 
         COUPON_DATA.forEach(m => {
-          // Biten bir maç zaten kayıtlıysa tekrar güncelleme yapma
           if (cachedScores[m.id] && cachedScores[m.id].status === 'FINISHED') return;
 
-          let lm = scores.find(s => 
-            (normalize(s.home).includes(normalize(m.home)) || normalize(m.home).includes(normalize(s.home))) && 
-            (normalize(s.away).includes(normalize(m.away)) || normalize(m.away).includes(normalize(s.away)))
-          );
+          let normHome = cleanStr(m.home);
+          let normAway = cleanStr(m.away);
+
+          let lm = scores.find(s => {
+            let apiHome = cleanStr(s.home);
+            let apiAway = cleanStr(s.away);
+
+            return (apiHome.includes(normHome) || normHome.includes(apiHome)) &&
+                   (apiAway.includes(normAway) || normAway.includes(apiAway));
+          });
 
           if (lm) {
             cachedScores[m.id] = {
@@ -153,19 +189,13 @@
         document.getElementById('syncTime').innerText = 'Son Güncelleme: ' + new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 
       } catch (e) {
-        document.getElementById('syncTime').innerText = 'Skorlar güncellenemiyor (Sunucu uykuda olabilir)';
+        document.getElementById('syncTime').innerText = 'Sunucu bekleniyor...';
       }
     }
 
     window.onload = () => {
-      // 1. Sayfa açılır açılmaz anında bülteni ve önbellekteki skorları çiz
       renderTable();
-      document.getElementById('syncTime').innerText = 'Önbellekten Yüklendi';
-
-      // 2. Arka planda canlı skorları getir
       fetchScores();
-
-      // 3. Her 30 saniyede bir kontrol et
       setInterval(fetchScores, 30000);
     };
   </script>
