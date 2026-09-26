@@ -26,24 +26,24 @@
   <script>
     const API = "https://sportoto-backend.onrender.com";
 
-    const COUPON_DATA = [
-      { id: 1, home: "Türkiye", away: "Fransa", cols: [["2"], ["2"], ["2"]] },
-      { id: 2, home: "Türkiye", away: "İtalya", cols: [["1"], ["1"], ["1"]] },
-      { id: 3, home: "İsveç", away: "Romanya", cols: [["1"], ["1"], ["0"]] },
-      { id: 4, home: "İtalya", away: "Belçika", cols: [["2"], ["0"], ["2"]] },
-      { id: 5, home: "Slovenya", away: "İskoçya", cols: [["2"], ["2"], ["0"]] },
-      { id: 6, home: "Bulgaristan", away: "Lüksemburg", cols: [["1"], ["1"], ["1"]] },
-      { id: 7, home: "Kuzey Makedonya", away: "İsviçre", cols: [["1"], ["2"], ["2"]] },
-      { id: 8, home: "Çekya", away: "Hırvatistan", cols: [["1"], ["2"], ["2"]] },
-      { id: 9, home: "İngiltere", away: "İspanya", cols: [["1"], ["0"], ["2"]] },
-      { id: 10, home: "Litvanya", away: "Azerbaycan", cols: [["1"], ["2"], ["0"]] },
-      { id: 11, home: "Avusturya", away: "Kosova", cols: [["2"], ["1"], ["0"]] },
-      { id: 12, home: "Danimarka", away: "Galler", cols: [["1"], ["1"], ["1"]] },
-      { id: 13, home: "Sırbistan", away: "Hollanda", cols: [["1"], ["2"], ["2"]] },
-      { id: 14, home: "Almanya", away: "Yunanistan", cols: [["1"], ["1"], ["1"]] },
-      { id: 15, home: "Norveç", away: "Portekiz", cols: [["1", "2"], ["1"], ["2"]] }
+  const COUPON_DATA = [
+      { id: 1, home: "Türkiye", away: "Fransa", cols: [["2"], ["2"], ["2"]], defaultDate: "25 Eylül", defaultTime: "21:45" },
+      { id: 2, home: "Türkiye", away: "İtalya", cols: [["1"], ["1"], ["1"]], defaultDate: "25 Eylül", defaultTime: "21:45" },
+      { id: 3, home: "İsveç", away: "Romanya", cols: [["1"], ["1"], ["0"]], defaultDate: "25 Eylül", defaultTime: "19:00" },
+      { id: 4, home: "İtalya", away: "Belçika", cols: [["2"], ["0"], ["2"]], defaultDate: "25 Eylül", defaultTime: "21:45" },
+      { id: 5, home: "Slovenya", away: "İskoçya", cols: [["2"], ["2"], ["0"]], defaultDate: "25 Eylül", defaultTime: "21:45" },
+      { id: 6, home: "Bulgaristan", away: "Lüksemburg", cols: [["1"], ["1"], ["1"]], defaultDate: "26 Eylül", defaultTime: "19:00" },
+      { id: 7, home: "Kuzey Makedonya", away: "İsviçre", cols: [["1"], ["2"], ["2"]], defaultDate: "26 Eylül", defaultTime: "21:45" },
+      { id: 8, home: "Çekya", away: "Hırvatistan", cols: [["1"], ["2"], ["2"]], defaultDate: "26 Eylül", defaultTime: "21:45" },
+      { id: 9, home: "İngiltere", away: "İspanya", cols: [["1"], ["0"], ["2"]], defaultDate: "26 Eylül", defaultTime: "21:45" },
+      { id: 10, home: "Litvanya", away: "Azerbaycan", cols: [["1"], ["2"], ["0"]], defaultDate: "27 Eylül", defaultTime: "19:00" },
+      { id: 11, home: "Avusturya", away: "Kosova", cols: [["2"], ["1"], ["0"]], defaultDate: "27 Eylül", defaultTime: "21:45" },
+      { id: 12, home: "Danimarka", away: "Galler", cols: [["1"], ["1"], ["1"]], defaultDate: "27 Eylül", defaultTime: "21:45" },
+      { id: 13, home: "Sırbistan", away: "Hollanda", cols: [["1"], ["2"], ["2"]], defaultDate: "27 Eylül", defaultTime: "21:45" },
+      { id: 14, home: "Almanya", away: "Yunanistan", cols: [["1"], ["1"], ["1"]], defaultDate: "28 Eylül", defaultTime: "21:45" },
+      { id: 15, home: "Norveç", away: "Portekiz", cols: [["1", "2"], ["1"], ["2"]], defaultDate: "28 Eylül", defaultTime: "21:45" }
     ];
-
+    
     const TEAM_MAP = {
       "turkey": "turkiye", "turkiye": "turkiye",
       "france": "fransa", "fransa": "fransa",
