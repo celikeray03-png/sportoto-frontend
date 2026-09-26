@@ -52,6 +52,7 @@ td input{margin:0 0 4px 0;font-size:13px;padding:8px}
 .kbtn{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;margin:1px}
 .kbtn.active{background:var(--accent);color:#04220f;border-color:var(--accent)}
 .kcell{display:flex;justify-content:center}
+textarea{width:100%;padding:11px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-size:13px;margin-top:6px;font-family:inherit;min-height:130px}
 </style>
 </head>
 <body>
@@ -74,6 +75,13 @@ td input{margin:0 0 4px 0;font-size:13px;padding:8px}
     <div class="card">
       <label>Kupon Başlığı</label>
       <input id="cTitle" placeholder="Örn: Hafta Sonu Kuponu">
+    </div>
+    <div class="card">
+      <label>Kuponu yazı olarak yapıştır (opsiyonel)</label>
+      <div class="muted" style="margin:4px 0">1. Türkiye - Fransa | Kolon 1: 1 | Kolon 2: 1,0 | Kolon 3: 2</div>
+      <textarea id="manualText" placeholder="1. Türkiye - Fransa | Kolon 1: 1 | Kolon 2: 1,0 | Kolon 3: 2"></textarea>
+      <button class="btn small secondary" id="parseManualBtn" style="margin-top:8px">Ayrıştır ve Tabloya Ekle</button>
+      <div class="err hidden" id="parseErr"></div>
     </div>
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
@@ -178,6 +186,41 @@ function renderRowsTable(){
   });
   document.querySelectorAll('.delRow').forEach(b=> b.onclick = () => { couponRows.splice(b.dataset.r,1); renderRowsTable(); });
 }
+function parseLine(line){
+  const parts = line.split("|").map(s=>s.trim()).filter(Boolean);
+  if(parts.length<1) return null;
+  const teamsPart = parts[0].replace(/^\d+[.)]\s*/, "");
+  const teams = teamsPart.split(/\s+-\s+/);
+  if(teams.length<2) return null;
+  const home = teams[0].trim(), away = teams.slice(1).join(" - ").trim();
+  const kolonMap = {};
+  for(let i=1;i<parts.length;i++){
+    const km = parts[i].match(/Kolon\s*(\d+)\s*:\s*(.+)/i);
+    if(km){ kolonMap[parseInt(km[1])-1] = km[2].split(",").map(v=>v.trim()).filter(Boolean); }
+  }
+  const idxs = Object.keys(kolonMap).map(Number);
+  const maxIdx = idxs.length ? Math.max(...idxs) : -1;
+  const kolon = Array.from({length:maxIdx+1}, (_,i)=> kolonMap[i]||[]);
+  return {home, away, kolon};
+}
+function parseManualText(text){
+  return text.split("\n").map(l=>l.trim()).filter(Boolean).map(parseLine).filter(Boolean);
+}
+$("#parseManualBtn").onclick = () => {
+  const errBox = $("#parseErr"); errBox.classList.add("hidden");
+  const parsed = parseManualText($("#manualText").value);
+  if(parsed.length===0){ errBox.textContent="Hiç maç ayrıştırılamadı, formatı kontrol et."; errBox.classList.remove("hidden"); return; }
+  kolonCount = Math.max(kolonCount, ...parsed.map(p=>p.kolon.length), 1);
+  $("#kolonCountInput").value = kolonCount;
+  couponRows = parsed.map(p=>{
+    const k = p.kolon.slice();
+    while(k.length<kolonCount) k.push([]);
+    return {home:p.home, away:p.away, kolon:k};
+  });
+  renderRowsTable();
+  $("#manualText").value = "";
+};
+
 $("#addRow").onclick = () => { couponRows.push(newRow()); renderRowsTable(); };
 $("#kolonCountInput").onchange = (e) => {
   kolonCount = Math.max(1, Math.min(8, parseInt(e.target.value)||3));
