@@ -153,9 +153,14 @@
       `;
     }
 
-    async function fetchScores() {
+   async function fetchScores() {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000); // 4 saniye timeout
+
       try {
-        const res = await fetch(API + '/api/scores');
+        const res = await fetch(API + '/api/scores', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
         const data = await res.json();
         const scores = data.matches || [];
 
@@ -196,10 +201,12 @@
         document.getElementById('syncTime').innerText = 'Son Güncelleme: ' + new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 
       } catch (e) {
-        document.getElementById('syncTime').innerText = 'Sunucu bekleniyor...';
+        document.getElementById('syncTime').innerText = 'Sunucu uyanıyor (Tekrar deneniyor...)';
+        // Hata durumunda 5 saniye sonra tekrar dene
+        setTimeout(fetchScores, 5000);
       }
     }
-
+    
     window.onload = () => {
       renderTable();
       fetchScores();
