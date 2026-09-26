@@ -95,6 +95,7 @@
         let st = saved.status || 'PENDING';
         let mTime = saved.matchTime || '--:--';
         let mDate = saved.matchDate || '';
+        let mMin = saved.matchMinute || '';
 
         let outcome = (st !== 'PENDING') ? (hScore > aScore ? '1' : (hScore < aScore ? '2' : '0')) : null;
 
@@ -114,8 +115,13 @@
         }).join('');
 
         let scoreDisplay = `<div class="text-[8px] text-slate-400 leading-tight">${mDate}</div><div class="text-[9px] text-slate-300 font-mono font-bold">${mTime}</div>`;
-        if (st === 'LIVE') scoreDisplay = `<span class="text-red-500 font-bold animate-pulse text-[10px]">${hScore}-${aScore}</span>`;
-        else if (st === 'FINISHED') scoreDisplay = `<span class="font-bold text-slate-200 text-[10px]">${hScore}-${aScore}</span>`;
+        if (st === 'LIVE') {
+          scoreDisplay = `
+            <div class="text-red-500 font-bold animate-pulse text-[10px]">${hScore}-${aScore}</div>
+            <div class="text-[8px] text-red-400 font-mono">${mMin || 'Canlı'}</div>`;
+        } else if (st === 'FINISHED') {
+          scoreDisplay = `<span class="font-bold text-slate-200 text-[10px]">${hScore}-${aScore}</span>`;
+        }
 
         return `
           <div class="grid grid-cols-12 py-2 px-2 items-center text-center text-[10px] border-b border-slate-700/50">
@@ -175,7 +181,8 @@
               awayScore: lm.awayScore,
               status: lm.status,
               matchTime: lm.matchTime,
-              matchDate: lm.matchDate
+              matchDate: lm.matchDate,
+              matchMinute: lm.matchMinute
             };
             hasUpdates = true;
           }
